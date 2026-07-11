@@ -12,6 +12,8 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import { ToastContainer } from "react-toastify";
+import { CallProvider } from "./context/CallContext";
+import CallOverlay from "./components/CallOverlay";
 
 
 const App = () => {
@@ -21,19 +23,27 @@ const App = () => {
 
   useEffect(() => {
     dispatch(getUser());
-  }, [getUser]);
+  }, []);
+
 
   useEffect(() => {
     if(authUser) {
       const socket = connectSocket(authUser._id);
 
-      socket.on("getOnlineUsers", (users) => {
+      const handleOnlineUsers = (users) => {
         dispatch(setOnlineUsers(users));
-      });
+      };
 
-      return () => disconnectSocket();
+      socket.off("getOnlineUsers");
+      socket.on("getOnlineUsers", handleOnlineUsers);
+
+      return () => {
+        socket.off("getOnlineUsers", handleOnlineUsers);
+        disconnectSocket();
+      };
     }
   }, [authUser]);
+
 
   if(isCheckingAuth && !authUser) {
     return (
@@ -45,28 +55,31 @@ const App = () => {
 
   return (
   <>
-     <Router>
-      <Navbar />
-      <Routes>
-        <Route 
-        path="/" 
-        element={authUser? <Home/> : <Navigate to={"/login"} />} 
-        />
-        <Route 
-        path="/register" 
-        element={!authUser? <Register /> : <Navigate to={"/"} />} 
-        />
-        <Route 
-        path="/login" 
-        element={!authUser? <Login/> : <Navigate to={"/"} />} 
-        />
-        <Route 
-        path="/profile" 
-        element={authUser? <Profile/> : <Navigate to={"/login"} />} 
-        />
-      </Routes>
-      <ToastContainer />
-     </Router>
+     <CallProvider>
+       <Router>
+        <Navbar />
+        <Routes>
+          <Route 
+          path="/" 
+          element={authUser? <Home/> : <Navigate to={"/login"} />} 
+          />
+          <Route 
+          path="/register" 
+          element={!authUser? <Register /> : <Navigate to={"/"} />} 
+          />
+          <Route 
+          path="/login" 
+          element={!authUser? <Login/> : <Navigate to={"/"} />} 
+          />
+          <Route 
+          path="/profile" 
+          element={authUser? <Profile/> : <Navigate to={"/login"} />} 
+          />
+        </Routes>
+        <CallOverlay />
+        <ToastContainer />
+       </Router>
+     </CallProvider>
   </>
 
   );
