@@ -7,10 +7,12 @@ export const getUsers = createAsyncThunk(
     async (_, thunkAPI) => {
         try {
             const res = await axiosInstance.get("/message/users");
-            console.log(res.data);
             return res.data.users;
         } catch (error) {
-            toast.error(error.response?.data?.message);
+            // Don't show toast for 401 errors (handled by auth flow)
+            if (error.response?.status !== 401) {
+                toast.error(error.response?.data?.message);
+            }
             return thunkAPI.rejectWithValue(error.response?.data?.message);
         }
     }
@@ -23,8 +25,10 @@ export const getMessages = createAsyncThunk(
             const res = await axiosInstance.get(`/message/${userId}`);
             return res.data;
         } catch (error) {
-            toast.error(error.response.data.message);
-            return thunkAPI.rejectWithValue(error.response.data.message);
+            if (error.response?.status !== 401) {
+                toast.error(error.response?.data?.message);
+            }
+            return thunkAPI.rejectWithValue(error.response?.data?.message);
         }
     }
 );
@@ -40,8 +44,10 @@ export const sendMessage = createAsyncThunk(
             );
             return res.data;
         } catch (error) {
-            toast.error(error.response.data.message);
-            return thunkAPI.rejectWithValue(error.response.data.message);
+            if (error.response?.status !== 401) {
+                toast.error(error.response?.data?.message);
+            }
+            return thunkAPI.rejectWithValue(error.response?.data?.message);
         }
     }
 );
