@@ -14,6 +14,7 @@ import Profile from "./pages/Profile";
 import { ToastContainer } from "react-toastify";
 import { CallProvider } from "./context/CallContext";
 import CallOverlay from "./components/CallOverlay";
+import { pushNewMessage } from "./store/slices/chatSlice";
 
 
 const App = () => {
@@ -34,15 +35,23 @@ const App = () => {
         dispatch(setOnlineUsers(users));
       };
 
+      const handleNewMessage = (newMessage) => {
+        dispatch(pushNewMessage(newMessage));
+      };
+
       socket.off("getOnlineUsers");
       socket.on("getOnlineUsers", handleOnlineUsers);
 
+      socket.off("newMessage");
+      socket.on("newMessage", handleNewMessage);
+
       return () => {
         socket.off("getOnlineUsers", handleOnlineUsers);
+        socket.off("newMessage", handleNewMessage);
         disconnectSocket();
       };
     }
-  }, [authUser]);
+  }, [authUser, dispatch]);
 
 
   if(isCheckingAuth && !authUser) {

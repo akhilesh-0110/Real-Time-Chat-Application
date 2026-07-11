@@ -66,9 +66,13 @@ const chatSlice = createSlice({
             state.selectedUser = action.payload;
         },
         pushNewMessage: (state, action) => {
-            const exists = state.messages.some(m => m._id === action.payload._id);
-            if (!exists) {
-                state.messages.push(action.payload);
+            const { senderId, receiverId } = action.payload;
+            const isRelated = state.selectedUser && (senderId === state.selectedUser._id || receiverId === state.selectedUser._id);
+            if (isRelated) {
+                const exists = state.messages.some(m => m._id === action.payload._id);
+                if (!exists) {
+                    state.messages.push(action.payload);
+                }
             }
         },
     },

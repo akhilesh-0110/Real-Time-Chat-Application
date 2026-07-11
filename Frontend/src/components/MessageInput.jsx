@@ -66,26 +66,7 @@ const MessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  useEffect(() => {
-    const socket = getSocket();
 
-    if (!socket) return;
-
-    const handleNewMessage = (newMessage) => {
-      if (
-        newMessage.senderId === selectedUser?._id ||
-        newMessage.receiverId === selectedUser?._id
-      ) {
-        dispatch(pushNewMessage(newMessage));
-      }
-    };
-
-    socket.on("newMessage", handleNewMessage);
-
-    return () => {
-      socket.off("newMessage", handleNewMessage);
-    };
-  }, [selectedUser?._id, dispatch]);
 
   return (
     <div className="p-4 w-full bg-white border-t border-gray-100">
