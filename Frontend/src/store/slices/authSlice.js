@@ -11,6 +11,7 @@ export const getUser = createAsyncThunk("user/me", async (_, thunkAPI) => {
     }
     catch (error) {
         console.log("Error fetching user:", error);
+        localStorage.removeItem("token");
         return thunkAPI.rejectWithValue(
             error.response?.data || "Failed to fetch user"
         );
@@ -20,6 +21,7 @@ export const getUser = createAsyncThunk("user/me", async (_, thunkAPI) => {
 export const logout = createAsyncThunk("user/sign-out", async (_, thunkAPI) => {
     try {
         await axiosInstance.get("/user/sign-out");
+        localStorage.removeItem("token");
         disconnectSocket();
         return null;
     }
@@ -32,6 +34,9 @@ export const logout = createAsyncThunk("user/sign-out", async (_, thunkAPI) => {
 export const login = createAsyncThunk("user/sign-in", async (data, thunkAPI) => {
     try {
         const res = await axiosInstance.post("/user/sign-in", data);
+        if (res.data.token) {
+            localStorage.setItem("token", res.data.token);
+        }
         connectSocket(res.data.user._id);
         toast.success("Logged in successfully");
         return res.data.user;
@@ -47,6 +52,9 @@ export const signup = createAsyncThunk(
     async (data, thunkAPI) => {
         try {
             const res = await axiosInstance.post("/user/sign-up", data);
+            if (res.data.token) {
+                localStorage.setItem("token", res.data.token);
+            }
             connectSocket(res.data.user._id);
             toast.success("Account created successfully");
             return res.data;
