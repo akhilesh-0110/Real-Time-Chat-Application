@@ -26,13 +26,15 @@ export function initSocket(server) {
             io.emit("getOnlineUsers", Object.keys(userSocketMap))
         });    
 
-        socket.on("callUser", ({ userToCall, offer, type }) => {
+        socket.on("callUser", ({ userToCall, offer, type, callerName, callerAvatar }) => {
             const receiverSocketId = userSocketMap[userToCall];
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit("incomingCall", {
                     from: userId,
                     offer,
                     type,
+                    callerName,
+                    callerAvatar,
                 });
             }
         });
