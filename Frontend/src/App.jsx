@@ -39,15 +39,47 @@ const App = () => {
         dispatch(pushNewMessage(newMessage));
       };
 
+      const handleIncomingCall = (data) => {
+        window.dispatchEvent(new CustomEvent("incomingCall", { detail: data }));
+      };
+
+      const handleCallAccepted = (data) => {
+        window.dispatchEvent(new CustomEvent("callAccepted", { detail: data }));
+      };
+
+      const handleSendIceCandidate = (data) => {
+        window.dispatchEvent(new CustomEvent("sendIceCandidate", { detail: data }));
+      };
+
+      const handleCallEnded = (data) => {
+        window.dispatchEvent(new CustomEvent("callEnded", { detail: data }));
+      };
+
       socket.off("getOnlineUsers");
       socket.on("getOnlineUsers", handleOnlineUsers);
 
       socket.off("newMessage");
       socket.on("newMessage", handleNewMessage);
 
+      socket.off("incomingCall");
+      socket.on("incomingCall", handleIncomingCall);
+
+      socket.off("callAccepted");
+      socket.on("callAccepted", handleCallAccepted);
+
+      socket.off("sendIceCandidate");
+      socket.on("sendIceCandidate", handleSendIceCandidate);
+
+      socket.off("callEnded");
+      socket.on("callEnded", handleCallEnded);
+
       return () => {
         socket.off("getOnlineUsers", handleOnlineUsers);
         socket.off("newMessage", handleNewMessage);
+        socket.off("incomingCall", handleIncomingCall);
+        socket.off("callAccepted", handleCallAccepted);
+        socket.off("sendIceCandidate", handleSendIceCandidate);
+        socket.off("callEnded", handleCallEnded);
         disconnectSocket();
       };
     }

@@ -21,6 +21,7 @@ const CallOverlay = () => {
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -33,6 +34,12 @@ const CallOverlay = () => {
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream, callState]);
+
+  useEffect(() => {
+    if (remoteAudioRef.current && remoteStream && callType === "audio") {
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream, callType, callState]);
 
   if (callState === "idle") return null;
 
@@ -224,6 +231,11 @@ const CallOverlay = () => {
             >
               <PhoneOff className="w-6 h-6" />
             </button>
+
+            {/* Hidden Audio Tag for Audio Calls */}
+            {callType === "audio" && remoteStream && (
+              <audio ref={remoteAudioRef} autoPlay />
+            )}
           </div>
         </div>
       )}

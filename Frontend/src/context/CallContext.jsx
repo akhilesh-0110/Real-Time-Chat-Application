@@ -52,91 +52,64 @@ export const CallProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    if (!authUser) {
-      cleanupCall();
-      return;
-    }
-
-    let socket = getSocket();
-    let intervalId;
-    let cleanupListeners;
-
-    const setupSocketListeners = (sock) => {
-      socketRef.current = sock;
-
-      const handleIncomingCall = ({ from, offer, type, callerName, callerAvatar }) => {
-        if (pcRef.current || localStreamRef.current) {
-          // If busy in another call, reject the incoming call
-          sock.emit("endCall", { to: from });
-          return;
-        }
-        
-        setCallType(type);
-        setCallerInfo({ id: from, name: callerName, avatar: callerAvatar });
-        setCallState("incoming");
-        
-        const pc = new RTCPeerConnection(servers);
-        pcRef.current = pc;
-        pc.offerData = offer;
-      };
-
-      const handleCallAccepted = async ({ answer }) => {
-        try {
-          if (pcRef.current) {
-            await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-            setCallState("ongoing");
-          }
-        } catch (err) {
-          console.error("Error setting remote description:", err);
-          cleanupCall();
-        }
-      };
-
-      const handleSendIceCandidate = async ({ candidate }) => {
-        try {
-          if (pcRef.current) {
-            await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-          }
-        } catch (err) {
-          console.error("Error adding ICE candidate:", err);
-        }
-      };
-
-      const handleCallEnded = () => {
-        toast.info("Call ended");
-        cleanupCall();
-      };
-
-      sock.on("incomingCall", handleIncomingCall);
-      sock.on("callAccepted", handleCallAccepted);
-      sock.on("sendIceCandidate", handleSendIceCandidate);
-      sock.on("callEnded", handleCallEnded);
-
-      return () => {
-        sock.off("incomingCall", handleIncomingCall);
-        sock.off("callAccepted", handleCallAccepted);
-        sock.off("sendIceCandidate", handleSendIceCandidate);
-        sock.off("callEnded", handleCallEnded);
-      };
+    const handleIncomingCallEvent = (e) => {
+      const { from, offer, type, callerName, callerAvatar } = e.detail;
+      if (pcRef.current || localStreamRef.current) {
+        const socket = getSocket();
+        if (socket) socket.emit("endCall", { to: from });
+        return;
+      }
+      
+      setCallType(type);
+      setCallerInfo({ id: from, name: callerName, avatar: callerAvatar });
+      setCallState("incoming");
+      
+      const pc = new RTCPeerConnection(servers);
+      pcRef.current = pc;
+      pc.offerData = offer;
     };
 
-    if (socket) {
-      cleanupListeners = setupSocketListeners(socket);
-    } else {
-      intervalId = setInterval(() => {
-        const sock = getSocket();
-        if (sock) {
-          clearInterval(intervalId);
-          cleanupListeners = setupSocketListeners(sock);
+    const handleCallAcceptedEvent = async (e) => {
+      const { answer } = e.detail;
+      try {
+        if (pcRef.current) {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+          setCallState("ongoing");
         }
-      }, 100);
-    }
+      } catch (err) {
+        console.error("Error setting remote description:", err);
+        cleanupCall();
+      }
+    };
+
+    const handleIceCandidateEvent = async (e) => {
+      const { candidate } = e.detail;
+      try {
+        if (pcRef.current) {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+      } catch (err) {
+        console.error("Error adding ICE candidate:", err);
+      }
+    };
+
+    const handleCallEndedEvent = () => {
+      toast.info("Call ended");
+      cleanupCall();
+    };
+
+    window.addEventListener("incomingCall", handleIncomingCallEvent);
+    window.addEventListener("callAccepted", handleCallAcceptedEvent);
+    window.addEventListener("sendIceCandidate", handleIceCandidateEvent);
+    window.addEventListener("callEnded", handleCallEndedEvent);
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
-      if (cleanupListeners) cleanupListeners();
+      window.removeEventListener("incomingCall", handleIncomingCallEvent);
+      window.removeEventListener("callAccepted", handleCallAcceptedEvent);
+      window.removeEventListener("sendIceCandidate", handleIceCandidateEvent);
+      window.removeEventListener("callEnded", handleCallEndedEvent);
     };
-  }, [authUser]);
+  }, []);
 
   const startCall = async (targetUser, type) => {
     try {
@@ -163,11 +136,14 @@ export const CallProvider = ({ children }) => {
       });
 
       pc.onicecandidate = (event) => {
-        if (event.candidate && socketRef.current) {
-          socketRef.current.emit("iceCandidate", {
-            to: targetUser._id,
-            candidate: event.candidate,
-          });
+        if (event.candidate) {
+          const socket = getSocket();
+          if (socket) {
+            socket.emit("iceCandidate", {
+              to: targetUser._id,
+              candidate: event.candidate,
+            });
+          }
         }
       };
 
@@ -180,8 +156,9 @@ export const CallProvider = ({ children }) => {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      if (socketRef.current) {
-        socketRef.current.emit("callUser", {
+      const socket = getSocket();
+      if (socket) {
+        socket.emit("callUser", {
           userToCall: targetUser._id,
           offer,
           type,
@@ -213,11 +190,14 @@ export const CallProvider = ({ children }) => {
       });
 
       pc.onicecandidate = (event) => {
-        if (event.candidate && socketRef.current) {
-          socketRef.current.emit("iceCandidate", {
-            to: callerInfo.id,
-            candidate: event.candidate,
-          });
+        if (event.candidate) {
+          const socket = getSocket();
+          if (socket) {
+            socket.emit("iceCandidate", {
+              to: callerInfo.id,
+              candidate: event.candidate,
+            });
+          }
         }
       };
 
@@ -232,8 +212,9 @@ export const CallProvider = ({ children }) => {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      if (socketRef.current) {
-        socketRef.current.emit("answerCall", {
+      const socket = getSocket();
+      if (socket) {
+        socket.emit("answerCall", {
           to: callerInfo.id,
           answer,
         });
@@ -248,16 +229,18 @@ export const CallProvider = ({ children }) => {
   };
 
   const declineCall = () => {
-    if (socketRef.current && callerInfo) {
-      socketRef.current.emit("endCall", { to: callerInfo.id });
+    const socket = getSocket();
+    if (socket && callerInfo) {
+      socket.emit("endCall", { to: callerInfo.id });
     }
     cleanupCall();
   };
 
   const endCall = () => {
     const activePartnerId = callerInfo?.id || receiverInfo?.id;
-    if (socketRef.current && activePartnerId) {
-      socketRef.current.emit("endCall", { to: activePartnerId });
+    const socket = getSocket();
+    if (socket && activePartnerId) {
+      socket.emit("endCall", { to: activePartnerId });
     }
     cleanupCall();
   };
