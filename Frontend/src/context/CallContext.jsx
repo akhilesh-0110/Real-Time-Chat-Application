@@ -30,6 +30,8 @@ export const CallProvider = ({ children }) => {
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const socketRef = useRef(null);
+  const candidatesQueueRef = useRef([]);
+  const isProcessingQueueRef = useRef(false);
 
   const cleanupCall = () => {
     if (localStreamRef.current) {
@@ -44,11 +46,33 @@ export const CallProvider = ({ children }) => {
       pcRef.current = null;
     }
 
+    candidatesQueueRef.current = [];
+    isProcessingQueueRef.current = false;
+
     setCallState("idle");
     setCallerInfo(null);
     setReceiverInfo(null);
     setIsMuted(false);
     setIsCameraOff(false);
+  };
+
+  const processQueuedCandidates = async () => {
+    const pc = pcRef.current;
+    if (!pc || isProcessingQueueRef.current) return;
+
+    isProcessingQueueRef.current = true;
+    try {
+      while (candidatesQueueRef.current.length > 0) {
+        const candidate = candidatesQueueRef.current.shift();
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.error("Error adding queued ICE candidate:", err);
+        }
+      }
+    } finally {
+      isProcessingQueueRef.current = false;
+    }
   };
 
   useEffect(() => {
@@ -75,6 +99,7 @@ export const CallProvider = ({ children }) => {
         if (pcRef.current) {
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
           setCallState("ongoing");
+          await processQueuedCandidates();
         }
       } catch (err) {
         console.error("Error setting remote description:", err);
@@ -85,8 +110,16 @@ export const CallProvider = ({ children }) => {
     const handleIceCandidateEvent = async (e) => {
       const { candidate } = e.detail;
       try {
-        if (pcRef.current) {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        const pc = pcRef.current;
+        if (pc) {
+          if (pc.remoteDescription && pc.remoteDescription.type && candidatesQueueRef.current.length === 0 && !isProcessingQueueRef.current) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } else {
+            candidatesQueueRef.current.push(candidate);
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              await processQueuedCandidates();
+            }
+          }
         }
       } catch (err) {
         console.error("Error adding ICE candidate:", err);
@@ -208,6 +241,7 @@ export const CallProvider = ({ children }) => {
       };
 
       await pc.setRemoteDescription(new RTCSessionDescription(pc.offerData));
+      await processQueuedCandidates();
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
